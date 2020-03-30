@@ -1,0 +1,268 @@
+---
+title: "Credit Score"
+author: "Daniel Obare"
+date: "2/3/2020"
+output: html_document
+  
+  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      message = FALSE)
+```
+
+```{r}
+require(dplyr)
+require(magrittr)
+require(tidyr)
+require(gmodels)
+require(ggplot2)
+require(ggthemes)
+theme_set(theme_minimal())
+require(kableExtra)
+load(file = "credit.Rdata")
+```
+
+
+
+```{r creditability}
+credit <-  german_credit %>% janitor::clean_names()
+
+credit %>% is.na() %>% any()
+
+credit$creditability <-  factor(credit$creditability, levels = c(0,1), labels = c("defaulter", "non-defaulter")) 
+
+credit %>% ggplot(aes(creditability))+
+  geom_bar()+
+  ggtitle("Creditability variation")
+```
+
+
+
+```{r account balance}
+credit$account_balance <- factor(credit$account_balance, levels = c(1,2,3,4), labels = c("very-low", "low", "high", "very-high"))
+
+table(credit$account_balance, credit$creditability) %>% kable() %>% kable_styling()
+credit %>% ggplot(aes(account_balance, fill = creditability))+
+  geom_bar(position = "dodge")+
+  ggtitle("Creditability as per Account Balance")
+```
+
+
+
+```{r duration of credit month}
+credit$duration_of_credit_month <- as.factor(credit$duration_of_credit_month)
+
+credit %>%  ggplot(aes(duration_of_credit_month, fill = creditability))+
+  geom_bar(position = "dodge")+
+  ggtitle("Creditability as per duration of Credit Month")
+```
+
+
+
+```{r payment status of previous credit}
+credit$payment_status_of_previous_credit  <- factor(credit$payment_status_of_previous_credit, levels = c(0,1,2,3,4), labels = c("pending", "below-average", "average", "above-average", "paid"))
+
+table(credit$payment_status_of_previous_credit, credit$creditability) %>% kable() %>% kable_styling()
+
+credit %>% ggplot(aes(payment_status_of_previous_credit, fill = creditability))+
+  geom_bar(position = "dodge")+
+  ggtitle("Creditabilty as per the Payment Status of Prevous Credit")
+```
+
+
+
+
+
+```{r credit amount}
+credit %>%  ggplot(aes(credit_amount, col=creditability))+
+  geom_freqpoly()+
+  ggtitle("Creditability as per Credit Amount")
+
+hist(credit$credit_amount, col = "grey", xlim = c(0, 20000), main = "Distribution of Credit Amount", xlab = "Credit Amount")
+```
+
+
+```{r value saving stocks}
+credit$value_savings_stocks <-  factor(credit$value_savings_stocks, levels = c(1,2,3,4,5), 
+                                     labels = c("very-high", "high", "medium", "low", "vey-low"))
+
+credit %>% ggplot(aes(value_savings_stocks, fill = creditability))+
+  geom_bar(position = "dodge")+
+  ggtitle("Creditability as per Value Saving Stocks")
+```
+
+
+
+```{r lenght of current employment}
+credit$year <- rep("years", nrow(credit)) 
+
+credit <-  credit %>% unite(length_of_current_employment, year, 
+                          col = "length_of_current_employment",
+                          sep = "-")
+
+credit$length_of_current_employment  <-  as.factor(credit$length_of_current_employment)
+
+credit %>% ggplot(aes(length_of_current_employment, fill = creditability))+
+  geom_bar(position = "dodge")+
+  ggtitle("Creditability as per the Length of Employment")
+```
+
+
+```{r instalment percent}
+credit %>% ggplot(aes(instalment_per_cent, fill = creditability))+
+  geom_bar(position = "dodge")+
+  xlab("percentage instalment (%)")+
+  ggtitle("Creditability as per the percentage instalment")
+```
+
+
+
+```{r sex and marital status}
+credit$sex_marital_status <- factor(credit$sex_marital_status, levels = c(1,2,3,4), labels = c("female-single", "female-married", "male-married", "male-single"))
+
+credit %>% ggplot(aes(sex_marital_status, fill = creditability))+
+  geom_bar(position = "dodge")+
+  xlab("Sex and Marital Status")+
+  ggtitle("Creditability as per Sex and Marital Status")
+```
+
+
+
+
+```{r guarantors}
+credit %>% ggplot(aes(guarantors, fill = creditability))+
+  geom_bar(position = "dodge")+
+  ggtitle("Creditability as their Guarantors")
+```
+
+
+
+
+```{r duration in current address}
+table(credit$creditability, credit$duration_in_current_address) %>% 
+  kable() %>% kable_styling()
+```
+
+
+```{r most valuable available assets}
+credit$most_valuable_available_asset <- factor(credit$most_valuable_available_asset, levels = c(1,2,3,4), labels = c("land", "appartment", "bussines", "car"))
+
+credit %>% ggplot(aes(most_valuable_available_asset, fill = creditability))+
+  geom_bar(position = "dodge")+
+  ggtitle("Creditability as per the Most Valuable assets")
+```
+
+
+
+```{r age}
+credit %>% ggplot(aes(creditability, age_years))+ 
+  geom_violin()
+```
+
+
+
+```{r concurrent credits}
+table(credit$creditability, credit$concurrent_credits) %>%
+  kable() %>% kable_styling()
+```
+
+
+```{r type of appartment}
+credit$type_of_apartment <- factor(credit$type_of_apartment, levels = c(1,2,3), 
+                                   labels = c("rental", "own", "free"))
+
+table(credit$type_of_apartment, credit$creditability) %>% 
+  kable() %>% kable_styling()
+```
+
+
+
+
+```{r number of credits at the bank}
+table(credit$creditability, credit$no_of_credits_at_this_bank) %>% 
+  kable() %>% kable_styling()
+```
+
+
+
+
+```{r number of dependents}
+credit %>% ggplot(aes(as.factor(no_of_dependents), fill = creditability))+
+  geom_bar(position = "dodge")+
+  ggtitle("Number of dependants")+
+  xlab("number of dependants")
+```
+
+
+
+```{r foreign worker}
+credit$foreign_worker <- factor(credit$foreign_worker, levels = c(1,2), labels = c("local", "foreigner"))
+
+credit %>% ggplot(aes(foreign_worker, fill = creditability))+
+  geom_bar(position = "dodge")+
+  ggtitle(" Creditability of Foreign workers and Locals")
+```
+
+
+```{r sampling}
+credit$creditability <- factor(credit$creditability, levels = c("defaulter", "non-defaulter"), labels = c(0,1))
+
+set.seed(1234)
+
+index <- sample(1:nrow(credit), 0.6*nrow(credit))
+
+train <- credit[index, ]
+test <- credit[-index, ]
+```
+
+
+```{r models}
+credit$creditability <-  factor(credit$creditability, levels = c("defaulter", "non-defaulter"), labels = c(0,1)) 
+
+
+mod1 <- glm(creditability~., train, family = binomial(link = "probit"))
+s1 <- summary(mod1)
+
+mod2 <- glm(creditability~account_balance+payment_status_of_previous_credit+credit_amount+
+              value_savings_stocks+length_of_current_employment+instalment_per_cent+
+              guarantors+type_of_apartment, train, 
+            family = binomial(link = "probit"))
+s2 <- summary(mod2)
+
+mod3 <- glm(creditability~account_balance+payment_status_of_previous_credit+credit_amount+
+              value_savings_stocks+instalment_per_cent+guarantors+type_of_apartment,
+            train, family = binomial(link = "probit"))
+s3 <- summary(mod3)
+```
+
+```{r test model with threshold}
+prob <- predict(mod3, newdata = test, type = "response")
+threshold <- 0.5
+test$mod3prediction <- ifelse(prob >= threshold, 1, 0)
+test$mod3prediction <- as.factor(test$mod3prediction)
+caret::confusionMatrix(test$creditability, test$mod3prediction)
+
+
+```
+
+
+```{r asses mod3}
+train$creditability <-  factor(train$creditability, levels = c(0,1), labels = c("defaulter", "non-defaulter"))
+
+train$prob <- predict(mod3, train, type = "response")
+
+train %>% ggplot(aes(prob, col = creditability))+
+  geom_density(size = 1)+
+  ggtitle("Training set's predicted score.")+
+  xlab("Prediction")
+
+
+pROC::roc(train$creditability, mod3$fitted.values, plot = TRUE, 
+          legacy.axes = TRUE, percet = TRUE, print.auc = TRUE)
+```
+
+
+
