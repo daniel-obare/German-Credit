@@ -1,0 +1,209 @@
+---
+title: "GERMAN CREDIT SCORE"
+author: "Daniel Obare"
+date: "10/5/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning=FALSE,
+  message = FALSE)
+```
+
+
+```{r libraries}
+require(flexdashboard)
+require(knitr)
+require(ggplot2)
+require(magrittr)
+require(kableExtra)
+require(dplyr)
+require(knitr)
+require(caret)
+require(lattice)
+require(gplots)
+require(ROCR)
+require(ggthemes)
+require(broom)
+require(grid)
+require(gridExtra)
+require(scales)
+require(tidyr)
+require(pROC)
+require(data.table)
+theme_set(theme_economist())
+load(file = "german.Rdata")
+```
+
+**Goal** The aim is to find a suitable credit score algorithm.
+
+__Practical suggestion.__ Building high performance mdels requires skill, ability to conceptualize and understand data relationships. Some theory, it is helpful to be versed in the appropriate literature, brainstorm relationships that hould exist in data and test them out.
+
+## General view of the data to model
+```{r german table}
+german %>% kable() %>%
+  kable_styling() %>%
+  scroll_box(width = "100%", height = "200px") 
+```
+**Dependant variable-Creditability** A binary variable indicating that the loan was not paid back in full ie.(the borrower defaulted the loan or the loan was a "write-off", meaning high chances were that the borrower will not pay back the loan).
+
+**Independent variable-'Account.Balance', 'duration.of.credit..month', 'Payment.status', 'Purpse', 'Credit.Amount', 'Value.Savings.Stock', 'Length.Current.Payment', 'Instalment.per.cent', 'Sex...Marital.Status', 'Guarantors', 'Duration.in.current.address', 'Most.valuable.available.asset', 'Age..yars', 'Concurrent.credits', 'Type.of.apartments', 'Occupation', 'N.of.credits.at.his.bank', 'No.of.dependants', 'Telephone', 'Foreign.workers'**
+
+A bar graph showing creditability for different balances in the account. From this we get to see that a person with very high account balance is more likely to be a non defaulter compared tompersons with very low account balance.
+```{r account balance}
+german %>% ggplot(aes(Account.Balance, fill=Creditability))+ 
+  geom_bar(position = "dodge")+ 
+  ggtitle("Account balance ")
+```
+
+
+From the credit amount graph, most people tend to go for less credit there being a higher difference a larger percentage of non defaulters took the less credit amount.
+```{r Credit amaount}
+german %>% ggplot(aes(Credit.Amount, col=Creditability))+
+  geom_freqpoly()+
+  ggtitle("Credit amount")
+```
+
+
+From a general perspective of value savings stock, most are non defaulters. But persons with a very high savings stock tend to be the most defaulters as well as non defaulters.
+```{r value savings stock}
+german %>% ggplot(aes(Value.Savings.Stocks, fill=Creditability))+
+  geom_bar(position = "dodge")+
+  ggtitle("Value savings stock")
+```
+
+
+Business owners hav a higher percentage of taking credit with various reasons like to increase capital investment and as well they most are none defaulters with a close range from land owners.
+```{r most valuable assets}
+german %>% ggplot(aes(Most.valuable.available.asset, fill=Creditability))+
+  geom_bar(position = "dodge")+
+  ggtitle("Most valuable assets")
+```
+
+
+Averagely, persons less than 40 years seek more creditwith a lesser percentage being defaulters.
+```{r age}
+german %>% ggplot(aes(Age..years., col=Creditability))+
+  geom_freqpoly(bins=20)+
+  ggtitle("Age")
+```
+
+```{r type of appartment}
+german %>% ggplot(aes(Type.of.apartment, fill=Creditability))+
+  geom_bar(position = "dodge")+
+  ggtitle("Type of appartment")
+```
+
+
+Persons with fewer dependents seek more credit which from basic assumption it should be vice versa but all in all they have a higher probablity of not defaulting even though the difference is almost lke half of those defaulting.
+```{r dependants}
+german %>% ggplot(aes(No.of.dependents, fill=Creditability))+
+  geom_bar(position = "dodge")+
+  ggtitle("Number of dependents")
+```
+
+Checking the number of credits at the bank to determine the credibility of the borrower from diverse credit banks.
+```{r number of credits}
+german %>% ggplot(aes(No.of.Credits.at.this.Bank, fill=Creditability))+
+  geom_bar(position = "dodge")+
+  ggtitle("Number of credits at the bank")+
+  xlab("Credit Bank Code")
+```
+
+
+## Next step is to build a Logistic Model and check model summary
+```{r model 1}
+mod1=glm(Creditability~., data = train, family = "binomial")
+summary(mod1)
+```
+
+**Signifance levels of the variables** variable having at least on star in the coefficients table are significant. Positive coefficient means the higher the value of that variable, the higher the risk of default, and vice versa.
+
+Since of the variables are not significant,indicated by lack of at least a single star on their coefficient tables, we will rebuild the logistic regression with only the significant variables. 
+
+```{r model2}
+mod2=glm(Creditability~Account.Balance+Payment.Status.of.Previous.Credit+Purpose+Credit.Amount+Value.Savings.Stocks+Instalment.per.cent+Sex...Marital.Status+Guarantors+No.of.Credits.at.this.Bank+Foreign.Worker, family = "binomial", train)
+summary(mod2)
+```
+
+Sex..marital.status poses as an insignificant variable in the second model. We build a third logistic model with only significant variables.
+
+
+**Revised logistic regression model.**
+```{r model 3}
+mod3=glm(Creditability~Account.Balance+Payment.Status.of.Previous.Credit+Purpose+Credit.Amount+Value.Savings.Stocks+Instalment.per.cent+No.of.Credits.at.this.Bank+Foreign.Worker, train, family = "binomial")
+summary(mod3)
+```
+
+**Using the revised model to make predictions on the test data.**
+
+We will store the predictions in a vector 'prob' then create a factor variable 'Prediction' from the probabilities and add it to the test dataset.
+
+```{r probabilities}
+prob=predict(mod3, newdata = test, type = "response")
+train$prob=predict(mod3, newdata = train, type = "response")
+test$Prediction=ifelse(prob>=0.5, "NON-DEFAULTER", "DEFAULTER")
+```
+
+##Predicting and assesing the model.
+To do this we perfom a quick evaluation on the training set by plotting the probability (score) estimated by our model.
+
+```{r asses model}
+train %>% ggplot(aes(prob, color=Creditability)) +
+  geom_density(size=1)+
+  theme_economist()+
+  ggtitle("Training set's predicted score.")+
+  xlab("Prediction")
+```
+
+Majority of our score is pulled towards the upper since most of our data given has many NON-DEFAULTERS.
+
+
+
+**Measure the accuracy of the model.**
+
+```{r measure accuracy}
+table(test$Creditability, test$Prediction)
+```
+
+
+**Compute the accuracy of the logit model.**
+```{r compute accuracy}
+(13+62)/nrow(test)
+```
+The accuracy is 0.75.
+
+**computing sensitivity**
+```{r computing sensitivity}
+62/(9+62)
+```
+The sensitivity is 0.87
+
+**Computing specificity**
+```{r computing specificity}
+13/(13+16)
+```
+specificity is 0.45
+
+
+We infer that the model is doing far much better in sensitivity as compared to specificity. Next we compare model's accuracy to the baseline accuracy.
+
+Comparing baseline accuracy
+```{r count of creditability}
+table(test$Creditability)
+```
+```{r computinng baseline accuracy}
+29/(29+71)
+```
+
+The baseline accuracy is 0.29. Which is quite lower than the model's accuracy.
+
+**Test set area under curve.**
+```{r AUC}
+roc(train$Creditability, mod3$fitted.values, plot = TRUE, legacy.axes= TRUE, percent = TRUE, 
+    print.auc = TRUE)
+```
+The second part tells us how many samples were defaulters(271) and non-defaulters(629). And lastly the Area Under Curve **AUC** which amounts to 80%
+
